@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -47,6 +47,64 @@ import { McvraChatDrawer } from './McvraChatDrawer';
 
 const edgeTypes = { curved: CurvedEdge };
 
+function highlightJsonSyntax(code) {
+  if (!code) return '';
+
+  const escapeHtml = (str) =>
+    str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+  const regex = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}[\],:])/g;
+
+  let lastIndex = 0;
+  let html = '';
+  let match;
+
+  while ((match = regex.exec(code)) !== null) {
+    if (match.index > lastIndex) {
+      html += escapeHtml(code.slice(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith('"')) {
+      if (token.includes(':')) {
+        const colonIdx = token.lastIndexOf(':');
+        const keyPart = token.slice(0, colonIdx);
+        const afterColon = token.slice(colonIdx);
+        html += `<span class="text-sky-700 font-bold">${escapeHtml(keyPart)}</span><span class="text-slate-400">${escapeHtml(afterColon)}</span>`;
+      } else {
+        html += `<span class="text-emerald-700 font-medium">${escapeHtml(token)}</span>`;
+      }
+    } else if (token === 'true' || token === 'false') {
+      html += `<span class="text-purple-700 font-bold">${escapeHtml(token)}</span>`;
+    } else if (token === 'null') {
+      html += `<span class="text-rose-600 font-bold">${escapeHtml(token)}</span>`;
+    } else if (/^-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?$/.test(token)) {
+      html += `<span class="text-amber-700 font-semibold">${escapeHtml(token)}</span>`;
+    } else if (/[{}[\]]/.test(token)) {
+      html += `<span class="text-indigo-600 font-bold">${escapeHtml(token)}</span>`;
+    } else if (token === ':' || token === ',') {
+      html += `<span class="text-slate-400 font-bold">${escapeHtml(token)}</span>`;
+    } else {
+      html += escapeHtml(token);
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < code.length) {
+    html += escapeHtml(code.slice(lastIndex));
+  }
+
+  if (code.endsWith('\n')) {
+    html += ' ';
+  }
+
+  return html;
+}
+
 function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -86,8 +144,51 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
   const [activeNodeModal, setActiveNodeModal] = useState(null); // null | 'formula' | 'choices'
   const [showStorageContext, setShowStorageContext] = useState(false);
   const abortControllerRef = useRef(null);
+  const surveyPreRef = useRef(null);
+  const surveyTextareaRef = useRef(null);
 
-  const { fitView } = useReactFlow();
+  const highlightedSurveyHtml = useMemo(() => {
+    return highlightJsonSyntax(surveyColumnsText);
+  }, [surveyColumnsText]);
+
+  const handleSurveyScroll = (e) => {
+    if (surveyPreRef.current) {
+      surveyPreRef.current.scrollTop = e.target.scrollTop;
+      surveyPreRef.current.scrollLeft = e.target.scrollLeft;
+    }
+  };
+
+  const handleSurveyKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const target = e.target;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      const value = target.value;
+      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      setSurveyColumnsText(newValue);
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
+
+  const { fitView, setCenter } = useReactFlow();
+
+  const navigateToNodeType = useCallback(
+    (type) => {
+      const matchingNodes = nodes.filter((n) => n.type === type);
+      if (matchingNodes.length > 0) {
+        fitView({
+          nodes: matchingNodes,
+          duration: 600,
+          padding: 0.35,
+        });
+        setSelectedNode(matchingNodes[0]);
+      }
+    },
+    [nodes, fitView, setSelectedNode]
+  );
 
   // Handle stopping/canceling active graph generation
   const handleStop = useCallback(() => {
@@ -494,19 +595,52 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex justify-between items-center mb-1.5">
                 <label className="text-[11px] font-semibold text-slate-700 block">
                   Survey Column Fields
                 </label>
-                <span className="text-[9px] text-slate-400 font-medium">Comma-separated or JSON</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const parsed = JSON.parse(surveyColumnsText);
+                        setSurveyColumnsText(JSON.stringify(parsed, null, 2));
+                      } catch {
+                        // ignore if invalid JSON
+                      }
+                    }}
+                    className="text-[10px] text-[#208661] hover:underline font-semibold hover:text-[#186a4d]"
+                    title="Prettify JSON indentation"
+                  >
+                    Format JSON
+                  </button>
+                  <span className="text-[9px] text-slate-400 font-medium">JSON format</span>
+                </div>
               </div>
-              <textarea
-                rows={12}
-                value={surveyColumnsText}
-                onChange={(e) => setSurveyColumnsText(e.target.value)}
-                placeholder="e.g. flood_zone_status, river_distance_m, building_typology"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661] min-h-[220px] resize-y leading-relaxed"
-              />
+              <div className="relative w-full rounded-xl border border-slate-300 bg-slate-50/50 overflow-hidden focus-within:ring-1 focus-within:ring-[#208661] focus-within:border-[#208661] shadow-sm">
+                {/* Syntax highlighted background preview */}
+                <pre
+                  ref={surveyPreRef}
+                  aria-hidden="true"
+                  className="absolute inset-0 p-3 font-mono text-xs leading-[1.6] whitespace-pre-wrap break-words pointer-events-none select-none overflow-hidden m-0 text-slate-800"
+                  style={{ tabSize: 2 }}
+                  dangerouslySetInnerHTML={{ __html: highlightedSurveyHtml }}
+                />
+                {/* Transparent editable textarea overlay */}
+                <textarea
+                  ref={surveyTextareaRef}
+                  rows={18}
+                  value={surveyColumnsText}
+                  onChange={(e) => setSurveyColumnsText(e.target.value)}
+                  onScroll={handleSurveyScroll}
+                  onKeyDown={handleSurveyKeyDown}
+                  placeholder='[&#10;  {&#10;    "name": "flood_zone_status",&#10;    "datatype": "boolean"&#10;  }&#10;]'
+                  spellCheck={false}
+                  className="relative z-10 w-full min-h-[360px] h-[380px] p-3 font-mono text-xs leading-[1.6] whitespace-pre-wrap break-words bg-transparent text-transparent caret-[#208661] selection:bg-[#208661]/25 selection:text-transparent resize-y focus:outline-none m-0 border-none block"
+                  style={{ tabSize: 2 }}
+                />
+              </div>
               <p className="text-[10px] text-slate-500 mt-1">
                 Specify survey dataset column names to map against assessment question indicators.
               </p>
@@ -614,6 +748,8 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
           )}
           {showMiniMap && (
             <MiniMap
+              pannable
+              zoomable
               nodeColor={(node) => {
                 switch (node.type) {
                   case 'criteria': return '#63ab91';
@@ -624,27 +760,85 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
                   default: return '#cbd5e1';
                 }
               }}
-              maskColor="rgba(248, 250, 252, 0.7)"
-              style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1' }}
+              maskColor="rgba(32, 134, 97, 0.12)"
+              maskStrokeColor="#208661"
+              maskStrokeWidth={2}
+              onClick={(event, position) => {
+                if (position && typeof position.x === 'number' && typeof position.y === 'number') {
+                  setCenter(position.x, position.y, { duration: 500 });
+                }
+              }}
+              onNodeClick={(event, node) => {
+                if (node) {
+                  const nodeW = node.measured?.width || node.width || 180;
+                  const nodeH = node.measured?.height || node.height || 60;
+                  const targetX = (node.position?.x ?? 0) + nodeW / 2;
+                  const targetY = (node.position?.y ?? 0) + nodeH / 2;
+                  setCenter(targetX, targetY, { duration: 500 });
+                  setSelectedNode(node);
+                }
+              }}
+              style={{
+                background: '#ffffff',
+                borderRadius: '12px',
+                border: '1.5px solid #cbd5e1',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                cursor: 'crosshair',
+                width: 220,
+                height: 150
+              }}
+              ariaLabel="Graph Overview Navigator"
             />
           )}
         </ReactFlow>
 
-        {/* Top-Left Canvas Context Card (Domain info + Node Legend, consolidated) */}
+        {/* Top-Left Canvas Overview & Node Navigation Panel */}
         <div className="absolute top-4 left-4 z-20 hidden sm:flex flex-col gap-2 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-sm px-3.5 py-2 rounded-xl text-xs text-slate-700">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#208661]" />
-            <span className="font-semibold text-slate-500">Domain:</span>
-            <span className="font-mono text-[#208661] font-bold">{currentDomain || 'pokhara.dastaa.org'}</span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-500 font-mono text-[11px]">{assessmentId}</span>
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => fitView({ duration: 500, padding: 0.2 })}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left cursor-pointer group"
+              title="Click to reset view & fit all nodes"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#208661] group-hover:scale-125 transition-transform" />
+              <span className="font-semibold text-slate-500">Domain:</span>
+              <span className="font-mono text-[#208661] font-bold">{currentDomain || 'pokhara.dastaa.org'}</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500 font-mono text-[11px]">{assessmentId}</span>
+            </button>
+            <span className="text-[10px] bg-slate-100 text-slate-500 font-semibold px-1.5 py-0.5 rounded">
+              Overview
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5 border-t border-slate-100">
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#E9F3F0] border border-[#208661]" /> Goal / Criteria</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#FFF8EC] border border-amber-400" /> Metric</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F5F5F5] border border-slate-400" /> Question</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#FEF3C7] border border-amber-500" /> Raster Calc</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F1CBCB] border border-rose-400" /> Raster</div>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1.5 border-t border-slate-100 text-[11px]">
+            <span className="text-[10px] text-slate-400 mr-0.5 font-medium">Navigate:</span>
+            {[
+              { type: 'criteria', label: 'Goal / Criteria', color: 'bg-[#E9F3F0] border-[#208661]' },
+              { type: 'metric', label: 'Metric', color: 'bg-[#FFF8EC] border-amber-400' },
+              { type: 'question', label: 'Question', color: 'bg-[#F5F5F5] border-slate-400' },
+              { type: 'raster_calculation', label: 'Raster Calc', color: 'bg-[#FEF3C7] border-amber-500' },
+              { type: 'raster', label: 'Raster', color: 'bg-[#F1CBCB] border-rose-400' },
+            ].map(({ type, label, color }) => {
+              const count = nodes.filter((n) => n.type === type).length;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => navigateToNodeType(type)}
+                  disabled={count === 0}
+                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all ${count > 0
+                    ? 'hover:bg-slate-100 hover:text-slate-900 cursor-pointer font-medium text-slate-700'
+                    : 'opacity-40 cursor-not-allowed text-slate-400'
+                    }`}
+                  title={count > 0 ? `Click to navigate to ${count} ${label} node(s)` : `No ${label} nodes`}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full border ${color}`} />
+                  <span>{label}</span>
+                  {count > 0 && <span className="text-[10px] text-slate-400">({count})</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -673,11 +867,6 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
                     <p className="text-[11px] text-slate-500">LangGraph Multi-Agent Pipeline Active</p>
                   </div>
                 </div>
-                {streamProgress && (
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#208661] text-white shadow-xs">
-                    Step {streamProgress.step} of {streamProgress.total_steps}
-                  </span>
-                )}
               </div>
 
               {/* Progress Bar */}
@@ -705,38 +894,6 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
                 <div className="flex items-center justify-center gap-2.5 py-6 text-xs font-semibold text-slate-600">
                   <RefreshCw size={18} className="animate-spin text-[#208661]" />
                   <span>Initializing MCVRA Multi-Agent Pipeline...</span>
-                </div>
-              )}
-
-              {/* Pipeline Steps / Agents List */}
-              {streamProgress && (
-                <div className="space-y-1.5 pt-1">
-                  {[
-                    { key: "select_framework_and_generate_components", label: "Pillar Components Agent" },
-                    { key: "generate_parameter_nodes", label: "Parameter Sub-criteria Agent" },
-                    { key: "generate_optional_nodes", label: "Optional GIS & Capacity Agent" },
-                    { key: "generate_question_ideas", label: "Question Generator Agent" },
-                    { key: "map_survey_columns", label: "Survey Column Alignment Agent" },
-                    { key: "evaluate_formulas_and_layout", label: "Formula & Layout Agent" },
-                    { key: "calculate_usage_metadata", label: "Usage & Pricing Agent" },
-                  ].map((agent, idx) => {
-                    const isDone = streamProgress.completedNodes?.includes(agent.key);
-                    const isCurrent = !isDone && (
-                      streamProgress.currentNode === agent.key ||
-                      (!streamProgress.currentNode && streamProgress.step === idx + 1)
-                    );
-                    return (
-                      <div key={agent.key} className="flex items-center justify-between text-xs py-0.5">
-                        <span className={`flex items-center gap-2 ${isDone ? 'text-emerald-800 font-semibold' : isCurrent ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
-                          <span className={`w-2 h-2 rounded-full ${isDone ? 'bg-emerald-500' : isCurrent ? 'bg-[#208661] animate-ping' : 'bg-slate-300'}`} />
-                          {agent.label}
-                        </span>
-                        <span className="font-mono text-[10px] font-semibold">
-                          {isDone ? '✓ Done' : isCurrent ? 'Working...' : 'Waiting'}
-                        </span>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
 
