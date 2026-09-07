@@ -31,7 +31,9 @@ import {
   Image as ImageIcon,
   Pencil,
   Settings2,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
@@ -82,6 +84,7 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [activeNodeModal, setActiveNodeModal] = useState(null); // null | 'formula' | 'choices'
+  const [showStorageContext, setShowStorageContext] = useState(false);
   const abortControllerRef = useRef(null);
 
   const { fitView } = useReactFlow();
@@ -363,21 +366,14 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
       <div className={`sidebar-container-rich ${sidebarOpen ? 'w-[360px]' : 'w-0 overflow-hidden p-0 border-none'}`}>
         <div className="space-y-4">
           {/* Header */}
-          <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Layers size={18} className="text-[#208661]" />
-                MCVRA Risk Visualizer
-              </h2>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Generate & inspect multi-criteria assessment trees.
-              </p>
-            </div>
-
-            <span className={`status-badge-rich ${mcvraOnline ? 'online' : 'offline'}`}>
-              <span className="status-dot-rich" />
-              {mcvraOnline ? 'API Active' : 'Offline'}
-            </span>
+          <div className="border-b border-slate-200 pb-3">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Layers size={18} className="text-[#208661]" />
+              MCVRA Risk Visualizer
+            </h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Generate & inspect multi-criteria assessment trees.
+            </p>
           </div>
 
           {/* Generation Form */}
@@ -412,49 +408,69 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
             </div>
 
             {/* Domain & Tenancy (SQLite Cache Context) */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                  Domain & Storage Context
-                </label>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-[#208661] font-semibold">
-                  SQLite Cache
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Domain / Tenant Name</label>
-                <input
-                  type="text"
-                  value={currentDomain}
-                  onChange={(e) => setCurrentDomain(e.target.value)}
-                  placeholder="e.g. pokhara.dastaa.org"
-                  className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Assessment ID</label>
-                  <input
-                    type="text"
-                    value={assessmentId}
-                    onChange={(e) => setAssessmentId(e.target.value)}
-                    placeholder="asm-default"
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
-                  />
+            <div className="rounded-xl bg-slate-50 border border-slate-200 shadow-2xs overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => setShowStorageContext(!showStorageContext)}
+                className="w-full p-2.5 flex items-center justify-between text-left hover:bg-slate-100/80 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  {showStorageContext ? (
+                    <ChevronDown size={14} className="text-slate-500" />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-500" />
+                  )}
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Domain & Storage Context
+                  </span>
                 </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">User ID</label>
-                  <input
-                    type="text"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="user-1"
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
-                  />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-[#208661] font-semibold">
+                    SQLite Cache
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {showStorageContext ? 'Hide' : 'Show'}
+                  </span>
                 </div>
-              </div>
+              </button>
+
+              {showStorageContext && (
+                <div className="p-3 pt-1 space-y-2 border-t border-slate-200/60">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Domain / Tenant Name</label>
+                    <input
+                      type="text"
+                      value={currentDomain}
+                      onChange={(e) => setCurrentDomain(e.target.value)}
+                      placeholder="e.g. pokhara.dastaa.org"
+                      className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Assessment ID</label>
+                      <input
+                        type="text"
+                        value={assessmentId}
+                        onChange={(e) => setAssessmentId(e.target.value)}
+                        placeholder="asm-default"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">User ID</label>
+                      <input
+                        type="text"
+                        value={userId}
+                        onChange={(e) => setUserId(e.target.value)}
+                        placeholder="user-1"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -485,114 +501,17 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
                 <span className="text-[9px] text-slate-400 font-medium">Comma-separated or JSON</span>
               </div>
               <textarea
-                rows={2}
+                rows={12}
                 value={surveyColumnsText}
                 onChange={(e) => setSurveyColumnsText(e.target.value)}
                 placeholder="e.g. flood_zone_status, river_distance_m, building_typology"
-                className="w-full text-xs p-2 rounded-xl border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661]"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#208661] focus:border-[#208661] min-h-[220px] resize-y leading-relaxed"
               />
               <p className="text-[10px] text-slate-500 mt-1">
                 Specify survey dataset column names to map against assessment question indicators.
               </p>
             </div>
-
-            <div className="flex gap-2 pt-1">
-              <Button
-                type="submit"
-                variant="gradient"
-                size="sm"
-                disabled={loading}
-                className="flex-1 bg-[#208661] hover:bg-[#1a6d4f] text-white font-medium"
-              >
-                {loading ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
-                {loading ? 'Generating...' : 'Generate Graph'}
-              </Button>
-              {loading && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleStop}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300 font-semibold flex items-center gap-1.5 transition px-3 shadow-2xs"
-                  title="Stop generation"
-                >
-                  <Square size={12} className="fill-rose-600 text-rose-600" />
-                  Stop
-                </Button>
-              )}
-            </div>
           </form>
-
-          {loading && streamProgress && (
-            <div className="p-3.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 shadow-sm space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-[#208661] animate-pulse" />
-                  LangGraph Pipeline Active
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#208661] text-white">
-                    Step {streamProgress.step} of {streamProgress.total_steps}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleStop}
-                    className="px-2 py-0.5 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-bold flex items-center gap-1 transition shadow-2xs"
-                    title="Stop pipeline execution"
-                  >
-                    <Square size={8} className="fill-rose-700" />
-                    Stop
-                  </button>
-                </div>
-              </div>
-
-              <div className="w-full bg-emerald-200/60 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-[#208661] h-1.5 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${Math.min(100, Math.max(10, (streamProgress.step / streamProgress.total_steps) * 100))}%` }}
-                />
-              </div>
-
-              <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200/60 space-y-0.5">
-                <div className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
-                  <RefreshCw size={12} className="animate-spin text-[#208661]" />
-                  {streamProgress.title}
-                </div>
-                <p className="text-[10px] text-slate-600 leading-tight">
-                  {streamProgress.description}
-                </p>
-              </div>
-
-              <div className="space-y-1 pt-1 border-t border-emerald-200/50">
-                {[
-                  { key: "select_framework_and_generate_components", label: "Pillar Components Agent" },
-                  { key: "generate_parameter_nodes", label: "Parameter Sub-criteria Agent" },
-                  { key: "generate_optional_nodes", label: "Optional GIS & Capacity Agent" },
-                  { key: "generate_question_ideas", label: "Question Generator Agent" },
-                  { key: "map_survey_columns", label: "Survey Column Alignment Agent" },
-                  { key: "evaluate_formulas_and_layout", label: "Formula & Layout Agent" },
-                  { key: "calculate_usage_metadata", label: "Usage & Pricing Agent" },
-                ].map((agent, idx) => {
-                  const isDone = streamProgress.completedNodes?.includes(agent.key);
-                  const isCurrent = !isDone && (
-                    streamProgress.currentNode === agent.key ||
-                    (!streamProgress.currentNode && streamProgress.step === idx + 1)
-                  );
-                  return (
-                    <div key={agent.key} className="flex items-center justify-between text-[10px]">
-                      <span className={`flex items-center gap-1.5 ${isDone ? 'text-emerald-800 font-semibold' : isCurrent ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isDone ? 'bg-emerald-500' : isCurrent ? 'bg-[#208661] animate-ping' : 'bg-slate-300'}`} />
-                        {agent.label}
-                      </span>
-                      <span className="font-mono text-[9px] font-semibold">
-                        {isDone ? '✓ Done' : isCurrent ? 'Working...' : 'Waiting'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
@@ -600,24 +519,6 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
               <span>{error}</span>
             </div>
           )}
-
-          {/* Graph Statistics Card */}
-          <div className="card-rich space-y-2">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Predicted Domain:</span>
-              <span className="font-bold text-[#208661] capitalize">
-                {(domain || facilityType || 'health_facility').replace(/_/g, ' ')}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Total Graph Nodes:</span>
-              <span className="font-bold text-slate-900 text-sm">{nodes.length}</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Total Connections:</span>
-              <span className="font-bold text-slate-900 text-sm">{edges.length}</span>
-            </div>
-          </div>
 
           {/* Export Action Buttons */}
           <div className="flex gap-1.5 flex-wrap">
@@ -646,17 +547,6 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
               <Copy size={13} /> {copied ? 'Copied' : 'Copy'}
             </Button>
           </div>
-
-          {/* AI Graph Copilot Chat Trigger */}
-          <Button
-            variant="gradient"
-            size="sm"
-            onClick={() => setIsChatOpen(true)}
-            className="w-full bg-[#208661] hover:bg-[#1a6d4f] text-white shadow-sm flex items-center justify-center gap-2 font-semibold"
-          >
-            <Sparkles size={14} className="animate-pulse" />
-            Chat with Graph Copilot
-          </Button>
         </div>
       </div>
 
@@ -768,6 +658,129 @@ function FlowViewer({ mcvraUrl, mcvraOnline, sidebarOpen, setSidebarOpen }) {
           <Sparkles size={14} className="text-[#208661] group-hover:rotate-12 transition-transform" />
           <span>Chat with Graph AI</span>
         </button>
+
+        {/* Centered Streaming Progress Status & Loading Indicator Overlay */}
+        {loading && (
+          <div className="absolute inset-0 z-40 bg-slate-900/20 backdrop-blur-xs flex items-center justify-center p-4 pointer-events-auto">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/80 shadow-2xl p-6 max-w-md w-full space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                    <Sparkles size={20} className="text-[#208661] animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Generating MCVRA Graph</h3>
+                    <p className="text-[11px] text-slate-500">LangGraph Multi-Agent Pipeline Active</p>
+                  </div>
+                </div>
+                {streamProgress && (
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#208661] text-white shadow-xs">
+                    Step {streamProgress.step} of {streamProgress.total_steps}
+                  </span>
+                )}
+              </div>
+
+              {/* Progress Bar */}
+              {streamProgress && (
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-[#208661] to-emerald-400 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(10, (streamProgress.step / streamProgress.total_steps) * 100))}%` }}
+                  />
+                </div>
+              )}
+
+              {/* Current Agent Activity Card */}
+              {streamProgress ? (
+                <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/70 space-y-1">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <RefreshCw size={14} className="animate-spin text-[#208661]" />
+                    <span>{streamProgress.title}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed pl-5">
+                    {streamProgress.description}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2.5 py-6 text-xs font-semibold text-slate-600">
+                  <RefreshCw size={18} className="animate-spin text-[#208661]" />
+                  <span>Initializing MCVRA Multi-Agent Pipeline...</span>
+                </div>
+              )}
+
+              {/* Pipeline Steps / Agents List */}
+              {streamProgress && (
+                <div className="space-y-1.5 pt-1">
+                  {[
+                    { key: "select_framework_and_generate_components", label: "Pillar Components Agent" },
+                    { key: "generate_parameter_nodes", label: "Parameter Sub-criteria Agent" },
+                    { key: "generate_optional_nodes", label: "Optional GIS & Capacity Agent" },
+                    { key: "generate_question_ideas", label: "Question Generator Agent" },
+                    { key: "map_survey_columns", label: "Survey Column Alignment Agent" },
+                    { key: "evaluate_formulas_and_layout", label: "Formula & Layout Agent" },
+                    { key: "calculate_usage_metadata", label: "Usage & Pricing Agent" },
+                  ].map((agent, idx) => {
+                    const isDone = streamProgress.completedNodes?.includes(agent.key);
+                    const isCurrent = !isDone && (
+                      streamProgress.currentNode === agent.key ||
+                      (!streamProgress.currentNode && streamProgress.step === idx + 1)
+                    );
+                    return (
+                      <div key={agent.key} className="flex items-center justify-between text-xs py-0.5">
+                        <span className={`flex items-center gap-2 ${isDone ? 'text-emerald-800 font-semibold' : isCurrent ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
+                          <span className={`w-2 h-2 rounded-full ${isDone ? 'bg-emerald-500' : isCurrent ? 'bg-[#208661] animate-ping' : 'bg-slate-300'}`} />
+                          {agent.label}
+                        </span>
+                        <span className="font-mono text-[10px] font-semibold">
+                          {isDone ? '✓ Done' : isCurrent ? 'Working...' : 'Waiting'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Stop Button */}
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStop}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition cursor-pointer"
+                  title="Stop generation"
+                >
+                  <Square size={12} className="fill-rose-600 text-rose-600" />
+                  <span>Stop Generation</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Generate Graph Action Bar (Bottom Center) */}
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 transition-all">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={loading}
+            className="bg-[#208661] hover:bg-[#1a6d4f] text-white shadow-2xl shadow-emerald-950/30 font-bold px-12 py-4 min-w-[260px] h-14 justify-center rounded-full flex items-center gap-3 cursor-pointer transition-all hover:scale-105 active:scale-95 text-base tracking-wide border border-emerald-400/40 disabled:opacity-85"
+          >
+            {loading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} className="fill-white" />}
+            <span>{loading ? 'Generating Graph...' : 'Generate Graph'}</span>
+          </button>
+          {loading && (
+            <button
+              type="button"
+              onClick={handleStop}
+              className="bg-white/95 hover:bg-white text-rose-600 border border-rose-200 shadow-2xl font-bold px-6 py-4 h-14 rounded-full flex items-center gap-2 transition cursor-pointer text-base hover:scale-105 active:scale-95"
+              title="Stop generation"
+            >
+              <Square size={16} className="fill-rose-600 text-rose-600" />
+              <span>Stop</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* MCVRA Graph AI Copilot Drawer */}

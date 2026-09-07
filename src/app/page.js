@@ -170,8 +170,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating AI Copilot Trigger Button (Bottom-Right) */}
-      {!isChatDrawerOpen && activeTab !== 'chatbot' && (
+      {/* Floating AI Copilot Trigger Button (Bottom-Right, hidden on chatbot and mcvra tabs) */}
+      {!isChatDrawerOpen && activeTab !== 'chatbot' && activeTab !== 'mcvra' && (
         <button
           onClick={() => setIsChatDrawerOpen(true)}
           className="fixed bottom-6 right-6 z-40 bg-[#208661] hover:bg-[#1a6d4f] text-white shadow-xl shadow-[#208661]/25 px-4 py-3 rounded-full flex items-center gap-2.5 transition-all hover:scale-105 group border border-emerald-300/30"
